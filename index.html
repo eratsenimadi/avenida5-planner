@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avenida 5 — Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#b8a27a;--gold-dark:#8a7250;--gold-light:#f5f0e8;
+  --bg:#f7f4ef;--white:#fff;--dark:#1a1a18;
+  --border:#ede8e0;--teal:#3DBFBF;--yellow:#F5C842;
+}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--dark);min-height:100vh}
+.sync-bar{background:var(--dark);color:#aaa;font-size:11px;padding:5px 28px;display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:#555;display:inline-block}
+.sync-dot.online{background:var(--teal);box-shadow:0 0 6px var(--teal)}
+.sync-dot.saving{background:var(--yellow);animation:pulse 1s infinite}
+.sync-dot.error{background:#f87171}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 28px 0;position:sticky;top:0;z-index:100;box-shadow:0 2px 24px rgba(0,0,0,.35)}
+.header-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px}
+.logo{display:flex;align-items:baseline;gap:10px}
+.logo h1{font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;color:#f0e8d8;letter-spacing:1px;font-weight:600}
+.logo span{font-size:10px;color:var(--gold);letter-spacing:2.5px;text-transform:uppercase}
+.stats{display:flex;gap:20px;flex-wrap:wrap}
+.stat{text-align:center}
+.stat-val{font-size:20px;font-weight:800}
+.stat-label{font-size:9px;color:#777;text-transform:uppercase;letter-spacing:1px}
+.btn-primary{padding:9px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#c9a96e,#a07840);color:#fff;cursor:pointer;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;box-shadow:0 4px 14px rgba(160,120,64,.4);white-space:nowrap;transition:opacity .15s}
+.btn-primary:hover{opacity:.88}
+.nav-tabs{display:flex;gap:4px;flex-wrap:wrap}
+.nav-tab{padding:8px 18px;border-radius:8px 8px 0 0;border:none;background:transparent;color:#777;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;transition:all .15s}
+.nav-tab.active{background:var(--bg);color:var(--dark);font-weight:700}
+.filters-bar{background:var(--white);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.filters-bar input,.filters-bar select{padding:7px 12px;border-radius:8px;border:1px solid var(--border);font-size:13px;background:#fafafa;font-family:'DM Sans',sans-serif;color:var(--dark)}
+.filters-bar input{width:180px}
+.count-label{margin-left:auto;font-size:12px;color:#aaa}
+.main{max-width:1400px;margin:0 auto;padding:24px 28px}
+/* KANBAN */
+.kanban{display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:16px}
+.col-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid}
+.col-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.col-count{border-radius:20px;padding:1px 8px;font-size:10px;font-weight:700}
+.cards{display:flex;flex-direction:column;gap:8px;min-height:40px}
+/* CARD */
+.card{background:var(--white);border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid var(--border);transition:box-shadow .15s}
+.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.10)}
+.card-body{padding:12px}
+.card-code{font-size:10px;font-weight:800;color:var(--dark);letter-spacing:1.5px;background:var(--gold-light);border:1px solid var(--border);border-radius:6px;padding:2px 8px;display:inline-block;margin-bottom:6px}
+.card-top{display:flex;justify-content:space-between;margin-bottom:4px;align-items:center}
+.card-date{font-size:11px;color:#aaa}
+.card-formato{font-size:11px;color:var(--gold);font-weight:600}
+.card-caption{font-size:12px;color:#444;line-height:1.5;margin-bottom:8px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.card-caption.empty{color:#ccc;font-style:italic}
+.card-redes{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:8px}
+.card-links{display:flex;flex-direction:column;gap:3px;margin-bottom:5px}
+.card-link{font-size:10px;color:var(--gold);text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-link:hover{text-decoration:underline}
+.card-actions{display:flex;gap:6px;margin-top:6px}
+.btn-edit{flex:1;padding:5px 0;border-radius:7px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:11px;color:#666;font-family:'DM Sans',sans-serif}
+.btn-del{padding:5px 10px;border-radius:7px;border:1px solid #fecaca;background:var(--white);cursor:pointer;font-size:11px;color:#f87171;font-family:'DM Sans',sans-serif}
+/* BADGES */
+.badge-estado{padding:2px 10px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;letter-spacing:.3px;display:inline-block}
+.badge-red{padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;color:#fff;display:inline-block}
+.red-ig{background:#e1306c}.red-fb{background:#1877f2}.red-tk{background:#222}
+/* LIST */
+.list-row{background:var(--white);border-radius:12px;padding:10px 16px;border:1px solid var(--border);display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.list-code{font-size:10px;font-weight:800;color:var(--dark);letter-spacing:1px;background:var(--gold-light);border:1px solid var(--border);border-radius:5px;padding:2px 7px;white-space:nowrap;flex-shrink:0}
+.list-date{font-size:12px;color:#aaa;min-width:76px}
+.list-formato{font-size:12px;color:var(--gold);font-weight:600;min-width:58px}
+.list-redes{display:flex;gap:3px}
+.list-caption{flex:1;font-size:12px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:80px}
+.list-caption.empty{color:#ccc;font-style:italic}
+/* CALENDAR */
+.cal-nav{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.cal-nav h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--dark)}
+.btn-nav{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:16px;color:#666}
+.cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.cal-day-name{text-align:center;font-size:10px;font-weight:700;color:#aaa;padding:4px 0;text-transform:uppercase}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-cell{min-height:80px;border-radius:10px;padding:6px 8px;background:var(--white);border:1px solid var(--border);cursor:pointer;transition:box-shadow .15s}
+.cal-cell:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.cal-cell.today{border:2px solid var(--gold)}
+.cal-cell.empty-cell{background:transparent;border-color:transparent;cursor:default}
+.cal-cell-day{font-size:12px;font-weight:500;color:#666;margin-bottom:4px}
+.cal-cell.today .cal-cell-day{color:var(--gold);font-weight:800}
+.cal-event{font-size:9px;padding:2px 5px;border-radius:5px;margin-bottom:2px;background:var(--gold-light);color:#7a6040;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.cal-more{font-size:9px;color:var(--gold)}
+/* EMPTY */
+.empty-state{text-align:center;padding:60px 20px;color:#ccc}
+.empty-icon{font-size:36px;margin-bottom:12px}
+.empty-state p{font-size:14px;line-height:1.7}
+/* LOADING */
+.loading-screen{position:fixed;inset:0;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999}
+.loading-logo{font-family:'Cormorant Garamond',serif;font-size:32px;color:#f0e8d8;letter-spacing:2px;margin-bottom:8px}
+.loading-sub{font-size:10px;color:var(--teal);letter-spacing:3px;text-transform:uppercase;margin-bottom:40px}
+.loading-bar{width:160px;height:2px;background:#333;border-radius:2px;overflow:hidden}
+.loading-bar-inner{height:100%;background:linear-gradient(90deg,var(--teal),var(--yellow));animation:load 1.4s ease-in-out infinite}
+@keyframes load{0%{width:0;margin-left:0}50%{width:100%;margin-left:0}100%{width:0;margin-left:100%}}
+.loading-msg{font-size:11px;color:#555;margin-top:16px}
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--white);border-radius:18px;padding:28px;width:100%;max-width:580px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.2)}
+.modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;gap:12px}
+.modal-title-wrap{display:flex;flex-direction:column;gap:5px}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--dark)}
+.modal-code-badge{font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--dark);background:var(--gold-light);border:1px solid var(--border);border-radius:7px;padding:3px 10px;display:inline-block;width:fit-content}
+.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:#888;line-height:1;flex-shrink:0}
+.form-grid{display:flex;flex-direction:column;gap:16px}
+.form-label{display:block;font-size:10px;font-weight:700;color:#999;margin-bottom:6px;letter-spacing:1px;text-transform:uppercase}
+.form-sublabel{font-weight:400;color:#bbb;text-transform:none;letter-spacing:0;font-size:10px}
+.form-input,.form-select,.form-textarea{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--border);font-size:13px;color:var(--dark);background:#fafafa;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--gold)}
+.form-textarea{resize:vertical}
+.form-divider{border:none;border-top:1px solid var(--border);margin:4px 0}
+.redes-btns{display:flex;gap:8px;flex-wrap:wrap}
+.red-toggle{padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;border:2px solid var(--border);background:var(--white);color:#888}
+.red-toggle.active{border-color:var(--gold);background:var(--gold-light);color:var(--gold-dark)}
+.modal-footer{display:flex;gap:10px;margin-top:24px;justify-content:flex-end}
+.btn-cancel{padding:9px 20px;border-radius:10px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:13px;color:#666;font-family:'DM Sans',sans-serif}
+/* LINKS */
+.links-list{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+.link-row{display:flex;gap:6px;align-items:center}
+.link-row input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--dark);background:#fafafa;font-family:'DM Sans',sans-serif}
+.link-row input:focus{outline:none;border-color:var(--gold)}
+.btn-remove-link{padding:5px 9px;border-radius:7px;border:1px solid #fecaca;background:var(--white);cursor:pointer;font-size:12px;color:#f87171;flex-shrink:0;font-family:'DM Sans',sans-serif}
+.btn-add-link{padding:7px 14px;border-radius:8px;border:1px dashed var(--gold);background:var(--gold-light);color:var(--gold-dark);cursor:pointer;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:opacity .15s;width:100%}
+.btn-add-link:hover{opacity:.8}
+.btn-add-link.teal{border-color:var(--teal);background:#f0fafa;color:#2a8a8a}
+.btn-add-link.purple{border-color:#7c6fcd;background:#f5f3ff;color:#5b4db5}
+/* GUION */
+.guion-tabs{display:flex;gap:4px;margin-bottom:8px}
+.guion-tab{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--white);color:#888;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;transition:all .15s}
+.guion-tab.active{background:var(--gold-light);border-color:var(--gold);color:var(--gold-dark);font-weight:600}
+/* CONFIRM */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px}
+.confirm-box{background:var(--white);border-radius:14px;padding:24px;max-width:360px;width:100%;text-align:center;box-shadow:0 16px 40px rgba(0,0,0,.2)}
+.confirm-box p{font-size:14px;color:#555;margin-bottom:20px;line-height:1.6}
+.btn-danger{padding:9px 20px;border-radius:10px;border:none;background:#ef4444;color:#fff;cursor:pointer;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;padding:10px 22px;border-radius:20px;font-size:12px;z-index:999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.toast.error{background:#ef4444}
+.toast.success{background:#10b981}
+@media(max-width:600px){
+  header{padding:14px 16px 0}.filters-bar{padding:10px 16px}.main{padding:16px}
+  .filters-bar input{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-logo">AVENIDA • 5</div>
+  <div class="loading-sub">Hair Boutique & Nails</div>
+  <div class="loading-bar"><div class="loading-bar-inner"></div></div>
+  <div class="loading-msg" id="loading-msg">Conectando con Google Sheets…</div>
+</div>
+
+<div class="sync-bar">
+  <span class="sync-dot" id="sync-dot"></span>
+  <span id="sync-label">Conectando…</span>
+</div>
+
+<header>
+  <div class="header-top">
+    <div class="logo">
+      <h1>Avenida 5</h1>
+      <span>Planner de Contenido</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-val" id="stat-total" style="color:#b8a27a">0</div><div class="stat-label">Total</div></div>
+      <div class="stat"><div class="stat-val" id="stat-proceso" style="color:#93c5fd">0</div><div class="stat-label">En proceso</div></div>
+      <div class="stat"><div class="stat-val" id="stat-prog" style="color:#fcd34d">0</div><div class="stat-label">Programados</div></div>
+      <div class="stat"><div class="stat-val" id="stat-pub" style="color:#86efac">0</div><div class="stat-label">Publicados</div></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div id="feed-link-wrap" style="position:relative">
+        <a id="feed-link-btn" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:10px;border:1.5px solid #3DBFBF;color:#3DBFBF;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;background:rgba(61,191,191,.08);transition:background .15s">
+          <span>✦</span> Ver Feed Visual
+        </a>
+        <button onclick="openFeedEditor()" title="Editar link" style="position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;border:none;background:#F5C842;color:#1a1a18;font-size:10px;cursor:pointer;font-weight:800;line-height:1">✎</button>
+      </div>
+      <button class="btn-primary" onclick="openModal()">+ Nueva publicación</button>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="setView('tablero',this)">Tablero</button>
+    <button class="nav-tab" onclick="setView('calendario',this)">Calendario</button>
+    <button class="nav-tab" onclick="setView('lista',this)">Lista</button>
+  </div>
+</header>
+
+<!-- FEED EDITOR POPUP -->
+<div id="feed-editor-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 50px rgba(0,0,0,.2)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:#1a1a18">Feed Visual</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px">Link a tu tablero de planificación visual</div>
+      </div>
+      <button onclick="closeFeedEditor()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1">×</button>
+    </div>
+    <input id="feed-url-input" type="url" placeholder="https://milanote.com/… o Canva, Notion…"
+      style="width:100%;padding:10px 12px;border-radius:9px;border:1px solid #ede8e0;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;background:#fafafa;color:#1a1a18;margin-bottom:14px"
+      onfocus="this.style.borderColor='#b8a27a'" onblur="this.style.borderColor='#ede8e0'">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeFeedEditor()" style="padding:8px 18px;border-radius:9px;border:1px solid #ede8e0;background:#fff;cursor:pointer;font-size:13px;color:#666;font-family:'DM Sans',sans-serif">Cancelar</button>
+      <button onclick="saveFeedUrl()" style="padding:8px 18px;border-radius:9px;border:none;background:linear-gradient(135deg,#c9a96e,#a07840);color:#fff;cursor:pointer;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="filters-bar">
+  <input type="text" id="search" placeholder="Buscar por código, caption…" oninput="render()">
+  <select id="filter-red" onchange="render()">
+    <option value="">Todas las redes</option>
+    <option>Instagram</option><option>Facebook</option><option>TikTok</option>
+  </select>
+  <select id="filter-estado" onchange="render()">
+    <option value="">Todos los estados</option>
+    <option value="sin_empezar">Sin empezar</option>
+    <option value="planeacion">Planeación</option>
+    <option value="grabacion">Grabación</option>
+    <option value="diseno">Diseño</option>
+    <option value="edicion">Edición</option>
+    <option value="copy">Copy y portada</option>
+    <option value="programado">Programado</option>
+    <option value="publicado">Publicado</option>
+  </select>
+  <span class="count-label" id="count-label"></span>
+</div>
+
+<div class="main">
+  <div id="view-tablero"></div>
+  <div id="view-lista" style="display:none"></div>
+  <div id="view-calendario" style="display:none"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <h2 class="modal-title" id="modal-title">Nueva publicación</h2>
+        <span class="modal-code-badge" id="modal-code-badge" style="display:none"></span>
+      </div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-grid">
+      <input type="hidden" id="form-id">
+      <input type="hidden" id="form-code">
+
+      <div>
+        <label class="form-label">Fecha</label>
+        <input type="date" id="form-fecha" class="form-input">
+      </div>
+      <div>
+        <label class="form-label">Formato</label>
+        <select id="form-formato" class="form-select">
+          <option value="">Selecciona…</option>
+          <option>Reel</option><option>Carrusel</option><option>Story</option>
+          <option>Post foto</option><option>Video largo</option><option>Live</option><option>Otro</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Redes sociales</label>
+        <div class="redes-btns">
+          <button type="button" class="red-toggle" data-red="Instagram" onclick="toggleRed(this)">Instagram</button>
+          <button type="button" class="red-toggle" data-red="Facebook" onclick="toggleRed(this)">Facebook</button>
+          <button type="button" class="red-toggle" data-red="TikTok" onclick="toggleRed(this)">TikTok</button>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Estado de producción</label>
+        <select id="form-estado" class="form-select">
+          <option value="sin_empezar">Sin empezar</option>
+          <option value="planeacion">Planeación</option>
+          <option value="grabacion">Grabación</option>
+          <option value="diseno">Diseño</option>
+          <option value="edicion">Edición</option>
+          <option value="copy">Copy y portada</option>
+          <option value="programado">Programado</option>
+          <option value="publicado">Publicado</option>
+        </select>
+      </div>
+
+      <hr class="form-divider">
+
+      <div>
+        <label class="form-label">Caption / Copy</label>
+        <textarea id="form-caption" class="form-textarea" rows="3" placeholder="El texto que irá publicado…"></textarea>
+      </div>
+      <div>
+        <label class="form-label">Descripción interna</label>
+        <textarea id="form-desc" class="form-textarea" rows="2" placeholder="Notas de producción, concepto, contexto…"></textarea>
+      </div>
+
+      <hr class="form-divider">
+
+      <div>
+        <label class="form-label">Guión <span class="form-sublabel">(opcional)</span></label>
+        <div class="guion-tabs">
+          <button type="button" class="guion-tab active" onclick="switchGuionTab('texto',this)">Escribir aquí</button>
+          <button type="button" class="guion-tab" onclick="switchGuionTab('link',this)">Link a documento</button>
+        </div>
+        <div id="guion-texto-panel">
+          <textarea id="form-guion-texto" class="form-textarea" rows="4" placeholder="Intro: …&#10;Desarrollo: …&#10;CTA: …"></textarea>
+        </div>
+        <div id="guion-link-panel" style="display:none">
+          <input type="url" id="form-guion-link" class="form-input" placeholder="https://docs.google.com/…">
+        </div>
+      </div>
+
+      <hr class="form-divider">
+
+      <div>
+        <label class="form-label">Link de portada <span class="form-sublabel">(opcional — abre donde esté guardada)</span></label>
+        <div class="links-list" id="portada-list"></div>
+        <button type="button" class="btn-add-link purple" onclick="addLink('portada-list')">+ Agregar link de portada</button>
+      </div>
+
+      <div>
+        <label class="form-label">Links de inspiración</label>
+        <div class="links-list" id="links-list"></div>
+        <button type="button" class="btn-add-link" onclick="addLink('links-list')">+ Agregar link de inspiración</button>
+      </div>
+
+      <div>
+        <label class="form-label">Links del resultado final <span class="form-sublabel">— publicación en redes</span></label>
+        <div class="links-list" id="results-list"></div>
+        <button type="button" class="btn-add-link teal" onclick="addLink('results-list')">+ Agregar link de publicación</button>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" id="btn-save" onclick="saveItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIRM DELETE -->
+<div class="confirm-overlay" id="confirm" style="display:none">
+  <div class="confirm-box">
+    <p>¿Eliminar esta publicación?<br>Esta acción no se puede deshacer.</p>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn-cancel" onclick="closeConfirm()">Cancelar</button>
+      <button class="btn-danger" onclick="confirmDelete()">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbzFIbrH9I0G0ZeAKDbXiyovjQN9yxQwevCbOVGFo48TEnJwZ_Po1JD8XEFWXn1heOfL/exec';
+const FORMAT_ICONS = {'Reel':'🎬','Carrusel':'🖼','Story':'📱','Post foto':'📷','Video largo':'🎥','Live':'🔴','Otro':'✨','':'✦'};
+
+const ESTADOS = {
+  sin_empezar:{ label:'Sin empezar',    bg:'#e5e7eb', text:'#6b7280' },
+  planeacion: { label:'Planeación',     bg:'#fef3c7', text:'#92400e' },
+  grabacion:  { label:'Grabación',      bg:'#dbeafe', text:'#1e40af' },
+  diseno:     { label:'Diseño',         bg:'#ede9fe', text:'#5b21b6' },
+  edicion:    { label:'Edición',        bg:'#fce7f3', text:'#9d174d' },
+  copy:       { label:'Copy y portada', bg:'#d1fae5', text:'#065f46' },
+  programado: { label:'Programado',     bg:'#fed7aa', text:'#9a3412' },
+  publicado:  { label:'Publicado',      bg:'#bbf7d0', text:'#14532d' },
+};
+const ESTADO_ORDER = Object.keys(ESTADOS);
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+let items = [], currentView = 'tablero';
+let currentMonth = new Date().getMonth(), currentYear = new Date().getFullYear();
+let deleteId = null;
+
+// ─── CÓDIGO ÚNICO AV5-NNN ─────────────────────────────
+function generateCode(){
+  const used = new Set(items.map(i=>i.code).filter(Boolean));
+  let n = items.length + 1;
+  let code;
+  do { code='AV5-'+String(n).padStart(3,'0'); n++; } while(used.has(code));
+  return code;
+}
+
+// ─── API ──────────────────────────────────────────────
+async function apiGet(){ const r=await fetch(`${API}?action=get`); const d=await r.json(); if(!d.ok) throw 0; return d.data; }
+async function apiSave(item){ await fetch(`${API}?action=save`,{method:'POST',body:JSON.stringify(item)}); }
+async function apiDelete(id){ await fetch(`${API}?action=delete&id=${id}`); }
+async function apiInit(){ await fetch(`${API}?action=init`); }
+
+function setSS(s,msg){ document.getElementById('sync-dot').className='sync-dot '+s; document.getElementById('sync-label').textContent=msg; }
+
+async function init(){
+  setSS('saving','Conectando…');
+  try{
+    await apiInit(); items=await apiGet();
+    setSS('online','Sincronizado · Google Sheets');
+    document.getElementById('loading-msg').textContent='¡Listo!';
+    setTimeout(()=>{ document.getElementById('loading').style.display='none'; render(); },600);
+  }catch(e){
+    setSS('error','Sin conexión — modo local'); loadLocal();
+    document.getElementById('loading-msg').textContent='Modo sin conexión';
+    setTimeout(()=>{ document.getElementById('loading').style.display='none'; render(); showToast('Sin conexión a Sheets. Cambios guardados localmente.','error'); },800);
+  }
+}
+function loadLocal(){ try{ items=JSON.parse(localStorage.getItem('av5_items'))||[]; }catch{ items=[]; } }
+function saveLocal(){ try{ localStorage.setItem('av5_items',JSON.stringify(items)); }catch{} }
+
+let toastT;
+function showToast(msg,type=''){ const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show '+type; clearTimeout(toastT); toastT=setTimeout(()=>{ t.className='toast'; },3200); }
+
+function estadoBadge(e){ const s=ESTADOS[e]||ESTADOS.sin_empezar; return `<span class="badge-estado" style="background:${s.bg};color:${s.text}">${s.label}</span>`; }
+function redBadge(r){ const c=r==='Instagram'?'red-ig':r==='Facebook'?'red-fb':'red-tk'; return `<span class="badge-red ${c}">${r}</span>`; }
+
+function getFiltered(){
+  const s=document.getElementById('search').value.toLowerCase();
+  const red=document.getElementById('filter-red').value;
+  const estado=document.getElementById('filter-estado').value;
+  return items.filter(i=>{
+    const mR=!red||(i.redes||[]).includes(red);
+    const mE=!estado||i.estado===estado;
+    const mS=!s||(i.caption||'').toLowerCase().includes(s)||(i.desc||'').toLowerCase().includes(s)||(i.code||'').toLowerCase().includes(s);
+    return mR&&mE&&mS;
+  }).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+}
+
+function render(){
+  const f=getFiltered();
+  document.getElementById('count-label').textContent=f.length+' publicaciones';
+  document.getElementById('stat-total').textContent=items.length;
+  document.getElementById('stat-proceso').textContent=items.filter(i=>!['publicado','programado','sin_empezar'].includes(i.estado)).length;
+  document.getElementById('stat-prog').textContent=items.filter(i=>i.estado==='programado').length;
+  document.getElementById('stat-pub').textContent=items.filter(i=>i.estado==='publicado').length;
+  if(currentView==='tablero') renderKanban(f);
+  else if(currentView==='lista') renderLista(f);
+  else renderCalendario();
+}
+function setView(v,btn){
+  currentView=v;
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active')); btn.classList.add('active');
+  ['tablero','lista','calendario'].forEach(x=>{ document.getElementById('view-'+x).style.display=x===v?'':'none'; });
+  render();
+}
+
+// ─── KANBAN ───────────────────────────────────────────
+function renderKanban(filtered){
+  const g={}; ESTADO_ORDER.forEach(e=>g[e]=[]); filtered.forEach(i=>(g[i.estado]||g.sin_empezar).push(i));
+  let h='<div class="kanban">';
+  ESTADO_ORDER.forEach(key=>{
+    const e=ESTADOS[key];
+    h+=`<div class="kanban-col"><div class="col-header" style="border-color:${e.bg}"><span class="col-title" style="color:${e.text}">${e.label}</span><span class="col-count" style="background:${e.bg};color:${e.text}">${g[key].length}</span></div><div class="cards">`;
+    g[key].forEach(item=>h+=cardHTML(item));
+    if(!g[key].length) h+='<div style="height:8px"></div>';
+    h+='</div></div>';
+  });
+  document.getElementById('view-tablero').innerHTML=h+'</div>';
+}
+
+function cardHTML(item){
+  const cap=item.caption||'';
+  const redes=(item.redes||[]).map(r=>redBadge(r)).join('');
+  const portadas=(item.portadas||[]).filter(Boolean);
+  const links=(item.links||[]).filter(Boolean);
+  const results=(item.results||[]).filter(Boolean);
+  const codeH=item.code?`<div class="card-code">${item.code}</div>`:'';
+  const portadasH=portadas.length?`<div class="card-links">${portadas.map((l,i)=>`<a href="${l}" target="_blank" class="card-link" style="color:#7c6fcd">🖼 Portada${portadas.length>1?' '+(i+1):''}</a>`).join('')}</div>`:'';
+  const linksH=links.length?`<div class="card-links">${links.map((l,i)=>`<a href="${l}" target="_blank" class="card-link">🔗 Inspiración${links.length>1?' '+(i+1):''}</a>`).join('')}</div>`:'';
+  const resH=results.length?`<div class="card-links">${results.map((l,i)=>`<a href="${l}" target="_blank" class="card-link" style="color:var(--teal)">🌐 Resultado${results.length>1?' '+(i+1):''}</a>`).join('')}</div>`:'';
+  const guionH=item.guionLink?`<a href="${item.guionLink}" target="_blank" class="card-link" style="color:#7c6fcd">📄 Ver guión</a>`:item.guionTexto?`<div style="font-size:10px;color:#7c6fcd;margin-bottom:4px;cursor:pointer" onclick="openModal('${item.id}')">📄 Guión escrito</div>`:'';
+  return `<div class="card"><div class="card-body">
+    ${codeH}
+    <div class="card-top"><span class="card-date">${item.fecha||'Sin fecha'}</span><span class="card-formato">${FORMAT_ICONS[item.formato]||'✦'} ${item.formato||''}</span></div>
+    <div class="card-caption ${cap?'':'empty'}">${cap||'Sin caption'}</div>
+    <div class="card-redes">${redes}</div>
+    ${portadasH}${linksH}${resH}${guionH}
+    <div class="card-actions"><button class="btn-edit" onclick="openModal('${item.id}')">Editar</button><button class="btn-del" onclick="askDelete('${item.id}')">✕</button></div>
+  </div></div>`;
+}
+
+// ─── LISTA ────────────────────────────────────────────
+function renderLista(filtered){
+  if(!filtered.length){ document.getElementById('view-lista').innerHTML=emptyHTML(); return; }
+  let h='';
+  filtered.forEach(item=>{
+    const redes=(item.redes||[]).map(r=>redBadge(r)).join('');
+    const portadas=(item.portadas||[]).filter(Boolean);
+    const res=(item.results||[]).filter(Boolean).map(l=>`<a href="${l}" target="_blank" style="font-size:11px;color:var(--teal)">🌐</a>`).join('');
+    const ins=(item.links||[]).filter(Boolean).map(()=>`<span style="font-size:11px;color:#b8a27a">🔗</span>`).join('');
+    const prt=portadas.map(l=>`<a href="${l}" target="_blank" style="font-size:11px;color:#7c6fcd">🖼</a>`).join('');
+    const guionH=item.guionLink?`<a href="${item.guionLink}" target="_blank" style="font-size:11px;color:#7c6fcd">📄</a>`:item.guionTexto?`<span style="font-size:11px;color:#7c6fcd">📄</span>`:'';
+    const codeH=item.code?`<span class="list-code">${item.code}</span>`:'';
+    h+=`<div class="list-row">${codeH}<span class="list-date">${item.fecha||'Sin fecha'}</span><span class="list-formato">${item.formato||'—'}</span>${estadoBadge(item.estado)}<div class="list-redes">${redes}</div><div class="list-caption ${item.caption?'':'empty'}">${item.caption||'Sin caption'}</div><div style="display:flex;gap:4px;align-items:center">${prt}${ins}${res}${guionH}</div><button class="btn-edit" onclick="openModal('${item.id}')">Editar</button><button class="btn-del" onclick="askDelete('${item.id}')">✕</button></div>`;
+  });
+  document.getElementById('view-lista').innerHTML=h;
+}
+
+// ─── CALENDARIO ───────────────────────────────────────
+function renderCalendario(){
+  const fd=new Date(currentYear,currentMonth,1).getDay();
+  const td=new Date(currentYear,currentMonth+1,0).getDate();
+  const today=new Date(); const itm=today.getMonth()===currentMonth&&today.getFullYear()===currentYear;
+  const dm={};
+  items.forEach(i=>{ if(!i.fecha) return; const d=new Date(i.fecha); if(d.getMonth()===currentMonth&&d.getFullYear()===currentYear){ const day=d.getDate(); if(!dm[day]) dm[day]=[]; dm[day].push(i); } });
+  let h=`<div class="cal-nav"><button class="btn-nav" onclick="calPrev()">←</button><h2>${MESES[currentMonth]} ${currentYear}</h2><button class="btn-nav" onclick="calNext()">→</button></div>
+  <div class="cal-days-header">${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d=>`<div class="cal-day-name">${d}</div>`).join('')}</div><div class="cal-grid">`;
+  for(let i=0;i<fd;i++) h+='<div class="cal-cell empty-cell"></div>';
+  for(let d=1;d<=td;d++){
+    const isT=itm&&d===today.getDate();
+    const ds=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const di=dm[d]||[];
+    h+=`<div class="cal-cell ${isT?'today':''}" onclick="calDayClick('${ds}')"><div class="cal-cell-day">${d}</div>`;
+    di.slice(0,3).forEach(it=>{ h+=`<div class="cal-event" onclick="event.stopPropagation();openModal('${it.id}')">${it.code?it.code+' · ':''}${(it.caption||'…').slice(0,14)}</div>`; });
+    if(di.length>3) h+=`<div class="cal-more">+${di.length-3} más</div>`;
+    h+='</div>';
+  }
+  document.getElementById('view-calendario').innerHTML=h+'</div>';
+}
+function calPrev(){ if(currentMonth===0){currentMonth=11;currentYear--;}else currentMonth--; renderCalendario(); }
+function calNext(){ if(currentMonth===11){currentMonth=0;currentYear++;}else currentMonth++; renderCalendario(); }
+function calDayClick(ds){ openModal(null,ds); }
+function emptyHTML(){ return`<div class="empty-state"><div class="empty-icon">✦</div><p>No hay publicaciones todavía.<br>Crea la primera con el botón de arriba.</p></div>`; }
+
+// ─── MODAL ────────────────────────────────────────────
+function openModal(id=null,fecha=''){
+  document.querySelectorAll('.red-toggle').forEach(b=>b.classList.remove('active'));
+  const badge=document.getElementById('modal-code-badge');
+  if(id){
+    const item=items.find(i=>i.id==id); if(!item) return;
+    document.getElementById('modal-title').textContent='Editar publicación';
+    document.getElementById('form-id').value=item.id;
+    document.getElementById('form-code').value=item.code||'';
+    if(item.code){ badge.textContent=item.code; badge.style.display='inline-block'; } else badge.style.display='none';
+    document.getElementById('form-fecha').value=item.fecha||'';
+    document.getElementById('form-formato').value=item.formato||'';
+    document.getElementById('form-estado').value=item.estado||'sin_empezar';
+    document.getElementById('form-caption').value=item.caption||'';
+    document.getElementById('form-desc').value=item.desc||'';
+    if(item.guionLink){ switchGuionTab('link',document.querySelector('.guion-tab:nth-child(2)')); document.getElementById('form-guion-link').value=item.guionLink; document.getElementById('form-guion-texto').value=''; }
+    else { switchGuionTab('texto',document.querySelector('.guion-tab:nth-child(1)')); document.getElementById('form-guion-texto').value=item.guionTexto||''; document.getElementById('form-guion-link').value=''; }
+    setLinkList('portada-list', item.portadas||[]);
+    setLinkList('links-list',   item.links||(item.link?[item.link]:[]));
+    setLinkList('results-list', item.results||[]);
+    (item.redes||[]).forEach(r=>{ const b=document.querySelector(`.red-toggle[data-red="${r}"]`); if(b) b.classList.add('active'); });
+  } else {
+    const newCode=generateCode();
+    document.getElementById('modal-title').textContent='Nueva publicación';
+    document.getElementById('form-id').value='';
+    document.getElementById('form-code').value=newCode;
+    badge.textContent=newCode; badge.style.display='inline-block';
+    document.getElementById('form-fecha').value=fecha;
+    document.getElementById('form-formato').value='';
+    document.getElementById('form-estado').value='sin_empezar';
+    document.getElementById('form-caption').value='';
+    document.getElementById('form-desc').value='';
+    switchGuionTab('texto',document.querySelector('.guion-tab:nth-child(1)'));
+    document.getElementById('form-guion-texto').value='';
+    document.getElementById('form-guion-link').value='';
+    setLinkList('portada-list',[]);
+    setLinkList('links-list',[]);
+    setLinkList('results-list',[]);
+  }
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){ document.getElementById('modal').style.display='none'; }
+function handleOverlayClick(e){ if(e.target.id==='modal') closeModal(); }
+function toggleRed(btn){ btn.classList.toggle('active'); }
+function switchGuionTab(tab,btn){
+  document.querySelectorAll('.guion-tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('guion-texto-panel').style.display=tab==='texto'?'':'none';
+  document.getElementById('guion-link-panel').style.display=tab==='link'?'':'none';
+}
+
+// ─── LINK LISTS ───────────────────────────────────────
+function addLink(listId,val=''){
+  const list=document.getElementById(listId);
+  const row=document.createElement('div'); row.className='link-row';
+  row.innerHTML=`<input type="url" placeholder="https://…" value="${val.replace(/"/g,'&quot;')}">
+    <button type="button" class="btn-remove-link" onclick="this.parentElement.remove()">✕</button>`;
+  list.appendChild(row);
+}
+function setLinkList(listId,arr){
+  document.getElementById(listId).innerHTML='';
+  if(!arr||!arr.length){ addLink(listId); return; }
+  arr.forEach(l=>addLink(listId,l));
+}
+function getLinkList(listId){
+  return[...document.querySelectorAll(`#${listId} .link-row input`)].map(i=>i.value.trim()).filter(Boolean);
+}
+
+// ─── SAVE ─────────────────────────────────────────────
+async function saveItem(){
+  const btn=document.getElementById('btn-save');
+  btn.textContent='Guardando…'; btn.disabled=true; setSS('saving','Guardando…');
+  const id=document.getElementById('form-id').value;
+  const code=document.getElementById('form-code').value||generateCode();
+  const isLink=document.getElementById('guion-link-panel').style.display!=='none';
+  const item={
+    id: id||String(Date.now()), code,
+    fecha: document.getElementById('form-fecha').value,
+    formato: document.getElementById('form-formato').value,
+    estado: document.getElementById('form-estado').value,
+    caption: document.getElementById('form-caption').value,
+    desc: document.getElementById('form-desc').value,
+    guionTexto: isLink?'':document.getElementById('form-guion-texto').value.trim(),
+    guionLink: isLink?document.getElementById('form-guion-link').value.trim():'',
+    portadas: getLinkList('portada-list'),
+    links: getLinkList('links-list'),
+    results: getLinkList('results-list'),
+    redes: [...document.querySelectorAll('.red-toggle.active')].map(b=>b.dataset.red)
+  };
+  if(id){ const idx=items.findIndex(i=>i.id==id); if(idx!==-1) items[idx]=item; } else items.push(item);
+  saveLocal(); render(); closeModal();
+  try{
+    await apiSave(item);
+    setSS('online','Sincronizado · '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}));
+    showToast(`${code} guardado ✓`,'success');
+  }catch(e){
+    setSS('error','Error al sincronizar'); showToast('Guardado localmente — sin conexión','error');
+  }finally{ btn.textContent='Guardar'; btn.disabled=false; }
+}
+
+// ─── DELETE ───────────────────────────────────────────
+function askDelete(id){ deleteId=id; document.getElementById('confirm').style.display='flex'; }
+function closeConfirm(){ document.getElementById('confirm').style.display='none'; deleteId=null; }
+async function confirmDelete(){
+  if(!deleteId) return; const id=deleteId;
+  items=items.filter(i=>i.id!=id); saveLocal(); render(); closeConfirm(); setSS('saving','Eliminando…');
+  try{ await apiDelete(id); setSS('online','Sincronizado · '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})); showToast('Eliminado ✓','success'); }
+  catch(e){ setSS('error','Error al sincronizar eliminación'); }
+}
+
+// ─── FEED VISUAL LINK ─────────────────────────────────
+function loadFeedUrl(){
+  const url = localStorage.getItem('av5_feed_url')||'';
+  const btn = document.getElementById('feed-link-btn');
+  if(url){ btn.href=url; btn.style.opacity='1'; }
+  else { btn.href='#'; btn.style.opacity='.5'; }
+}
+function openFeedEditor(){
+  document.getElementById('feed-url-input').value = localStorage.getItem('av5_feed_url')||'';
+  document.getElementById('feed-editor-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('feed-url-input').focus(),50);
+}
+function closeFeedEditor(){ document.getElementById('feed-editor-overlay').style.display='none'; }
+function saveFeedUrl(){
+  const url = document.getElementById('feed-url-input').value.trim();
+  localStorage.setItem('av5_feed_url', url);
+  loadFeedUrl();
+  closeFeedEditor();
+  showToast('Link del feed guardado ✓','success');
+}
+
+init();
+loadFeedUrl();
+</script>
+</body>
+</html>
