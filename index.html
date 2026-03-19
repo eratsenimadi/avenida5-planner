@@ -126,6 +126,7 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
 .link-row input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--dark);background:#fafafa;font-family:'DM Sans',sans-serif}
 .link-row input:focus{outline:none;border-color:var(--gold)}
 .btn-remove-link{padding:5px 9px;border-radius:7px;border:1px solid #fecaca;background:var(--white);cursor:pointer;font-size:12px;color:#f87171;flex-shrink:0;font-family:'DM Sans',sans-serif}
+.btn-open-link{padding:5px 9px;border-radius:7px;border:1px solid var(--border);background:var(--white);font-size:12px;color:#666;flex-shrink:0;text-decoration:none;display:flex;align-items:center;transition:opacity .15s}
 .btn-add-link{padding:7px 14px;border-radius:8px;border:1px dashed var(--gold);background:var(--gold-light);color:var(--gold-dark);cursor:pointer;font-size:12px;font-weight:600;font-family:'DM Sans',sans-serif;transition:opacity .15s;width:100%}
 .btn-add-link:hover{opacity:.8}
 .btn-add-link.teal{border-color:var(--teal);background:#f0fafa;color:#2a8a8a}
@@ -272,6 +273,13 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
           <button type="button" class="red-toggle" data-red="TikTok" onclick="toggleRed(this)">TikTok</button>
         </div>
       </div>
+
+      <div>
+        <label class="form-label">Links de inspiración</label>
+        <div class="links-list" id="links-list"></div>
+        <button type="button" class="btn-add-link" onclick="addLink('links-list')">+ Agregar link de inspiración</button>
+      </div>
+
       <div>
         <label class="form-label">Estado de producción</label>
         <select id="form-estado" class="form-select">
@@ -319,12 +327,6 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
         <label class="form-label">Link de portada <span class="form-sublabel">(opcional — abre donde esté guardada)</span></label>
         <div class="links-list" id="portada-list"></div>
         <button type="button" class="btn-add-link purple" onclick="addLink('portada-list')">+ Agregar link de portada</button>
-      </div>
-
-      <div>
-        <label class="form-label">Links de inspiración</label>
-        <div class="links-list" id="links-list"></div>
-        <button type="button" class="btn-add-link" onclick="addLink('links-list')">+ Agregar link de inspiración</button>
       </div>
 
       <div>
@@ -497,12 +499,28 @@ function renderLista(filtered){
 }
 
 // ─── CALENDARIO ───────────────────────────────────────
+function parseFecha(str){
+  // Parse YYYY-MM-DD as local date (avoids UTC→local timezone shift)
+  if(!str) return null;
+  const p=str.split('-');
+  if(p.length!==3) return null;
+  return { y:parseInt(p[0]), m:parseInt(p[1])-1, d:parseInt(p[2]) };
+}
+
 function renderCalendario(){
   const fd=new Date(currentYear,currentMonth,1).getDay();
   const td=new Date(currentYear,currentMonth+1,0).getDate();
   const today=new Date(); const itm=today.getMonth()===currentMonth&&today.getFullYear()===currentYear;
   const dm={};
-  items.forEach(i=>{ if(!i.fecha) return; const d=new Date(i.fecha); if(d.getMonth()===currentMonth&&d.getFullYear()===currentYear){ const day=d.getDate(); if(!dm[day]) dm[day]=[]; dm[day].push(i); } });
+  items.forEach(i=>{
+    if(!i.fecha) return;
+    const p=parseFecha(i.fecha);
+    if(!p) return;
+    if(p.m===currentMonth&&p.y===currentYear){
+      if(!dm[p.d]) dm[p.d]=[];
+      dm[p.d].push(i);
+    }
+  });
   let h=`<div class="cal-nav"><button class="btn-nav" onclick="calPrev()">←</button><h2>${MESES[currentMonth]} ${currentYear}</h2><button class="btn-nav" onclick="calNext()">→</button></div>
   <div class="cal-days-header">${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d=>`<div class="cal-day-name">${d}</div>`).join('')}</div><div class="cal-grid">`;
   for(let i=0;i<fd;i++) h+='<div class="cal-cell empty-cell"></div>';
@@ -577,9 +595,17 @@ function switchGuionTab(tab,btn){
 function addLink(listId,val=''){
   const list=document.getElementById(listId);
   const row=document.createElement('div'); row.className='link-row';
-  row.innerHTML=`<input type="url" placeholder="https://…" value="${val.replace(/"/g,'&quot;')}">
+  row.innerHTML=`<input type="url" placeholder="https://…" value="${val.replace(/"/g,'&quot;')}" oninput="updateOpenBtn(this)">
+    <a href="${val||'#'}" target="_blank" class="btn-open-link" title="Abrir link" style="${val?'':'opacity:.3;pointer-events:none'}" onclick="if(!this.previousElementSibling.value){event.preventDefault()}">↗</a>
     <button type="button" class="btn-remove-link" onclick="this.parentElement.remove()">✕</button>`;
   list.appendChild(row);
+}
+function updateOpenBtn(input){
+  const a=input.nextElementSibling;
+  const v=input.value.trim();
+  a.href=v||'#';
+  a.style.opacity=v?'1':'.3';
+  a.style.pointerEvents=v?'':'none';
 }
 function setLinkList(listId,arr){
   document.getElementById(listId).innerHTML='';
