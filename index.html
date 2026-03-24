@@ -183,6 +183,12 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
         </a>
         <button onclick="openFeedEditor()" title="Editar link" style="position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;border:none;background:#F5C842;color:#1a1a18;font-size:10px;cursor:pointer;font-weight:800;line-height:1">✎</button>
       </div>
+      <div id="drive-link-wrap" style="position:relative">
+        <a id="drive-link-btn" href="#" target="_blank" style="display:flex;align-items:center;gap:7px;padding:8px 16px;border-radius:10px;border:1.5px solid #34a853;color:#34a853;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;background:rgba(52,168,83,.08);transition:background .15s">
+          <span>▲</span> Drive
+        </a>
+        <button onclick="openDriveEditor()" title="Editar link" style="position:absolute;top:-7px;right:-7px;width:18px;height:18px;border-radius:50%;border:none;background:#F5C842;color:#1a1a18;font-size:10px;cursor:pointer;font-weight:800;line-height:1">✎</button>
+      </div>
       <button class="btn-primary" onclick="openModal()">+ Nueva publicación</button>
     </div>
   </div>
@@ -213,7 +219,25 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
   </div>
 </div>
 
-<div class="filters-bar">
+<!-- DRIVE EDITOR POPUP -->
+<div id="drive-editor-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 50px rgba(0,0,0,.2)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div style="font-family:'Cormorant Garamond',serif;font-size:18px;color:#1a1a18">Drive</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px">Link a tu carpeta de Google Drive</div>
+      </div>
+      <button onclick="closeDriveEditor()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#888;line-height:1">×</button>
+    </div>
+    <input id="drive-url-input" type="url" placeholder="https://drive.google.com/…"
+      style="width:100%;padding:10px 12px;border-radius:9px;border:1px solid #ede8e0;font-size:13px;font-family:'DM Sans',sans-serif;outline:none;background:#fafafa;color:#1a1a18;margin-bottom:14px"
+      onfocus="this.style.borderColor='#34a853'" onblur="this.style.borderColor='#ede8e0'">
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button onclick="closeDriveEditor()" style="padding:8px 18px;border-radius:9px;border:1px solid #ede8e0;background:#fff;cursor:pointer;font-size:13px;color:#666;font-family:'DM Sans',sans-serif">Cancelar</button>
+      <button onclick="saveDriveUrl()" style="padding:8px 18px;border-radius:9px;border:none;background:#34a853;color:#fff;cursor:pointer;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif">Guardar</button>
+    </div>
+  </div>
+</div>
   <input type="text" id="search" placeholder="Buscar por código, caption…" oninput="render()">
   <select id="filter-red" onchange="render()">
     <option value="">Todas las redes</option>
@@ -340,6 +364,10 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
         <label class="form-label">Links del resultado final <span class="form-sublabel">— publicación en redes</span></label>
         <div class="links-list" id="results-list"></div>
         <button type="button" class="btn-add-link teal" onclick="addLink('results-list')">+ Agregar link de publicación</button>
+      </div>
+
+      <div id="modal-delete-section" style="display:none;padding-top:4px">
+        <button type="button" onclick="modalDeleteCurrent()" style="width:100%;padding:9px;border-radius:10px;border:1px solid #fecaca;background:#fff5f5;color:#ef4444;cursor:pointer;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif">🗑 Eliminar esta publicación</button>
       </div>
 
     </div>
@@ -545,7 +573,11 @@ function renderCalendario(){
 }
 function calPrev(){ if(currentMonth===0){currentMonth=11;currentYear--;}else currentMonth--; renderCalendario(); }
 function calNext(){ if(currentMonth===11){currentMonth=0;currentYear++;}else currentMonth++; renderCalendario(); }
-function calDayClick(ds){ openModal(null,ds); }
+function calDayClick(ds){
+  openModal(null,ds);
+  // Trigger conflict check since we pre-filled the date
+  setTimeout(()=>checkDateConflict(),50);
+}
 function emptyHTML(){ return`<div class="empty-state"><div class="empty-icon">✦</div><p>No hay publicaciones todavía.<br>Crea la primera con el botón de arriba.</p></div>`; }
 
 // ─── MODAL ────────────────────────────────────────────
@@ -589,6 +621,8 @@ function openModal(id=null,fecha=''){
     setLinkList('results-list',[]);
   }
   document.getElementById('modal').style.display='flex';
+  // Show delete button only when editing an existing item
+  document.getElementById('modal-delete-section').style.display = id ? '' : 'none';
 }
 function closeModal(){ document.getElementById('modal').style.display='none'; }
 function handleOverlayClick(e){ if(e.target.id==='modal') closeModal(); }
@@ -667,6 +701,13 @@ async function confirmDelete(){
   catch(e){ setSS('error','Error al sincronizar eliminación'); }
 }
 
+function modalDeleteCurrent(){
+  const id = document.getElementById('form-id').value;
+  if(!id) return;
+  closeModal();
+  askDelete(id);
+}
+
 // ─── FEED VISUAL LINK ─────────────────────────────────
 function loadFeedUrl(){
   const url = localStorage.getItem('av5_feed_url')||'';
@@ -728,8 +769,30 @@ async function shiftFollowing(){
   }
 }
 
+// ─── DRIVE LINK ───────────────────────────────────────
+function loadDriveUrl(){
+  const url = localStorage.getItem('av5_drive_url')||'';
+  const btn = document.getElementById('drive-link-btn');
+  if(url){ btn.href=url; btn.style.opacity='1'; }
+  else { btn.href='#'; btn.style.opacity='.5'; }
+}
+function openDriveEditor(){
+  document.getElementById('drive-url-input').value = localStorage.getItem('av5_drive_url')||'';
+  document.getElementById('drive-editor-overlay').style.display='flex';
+  setTimeout(()=>document.getElementById('drive-url-input').focus(),50);
+}
+function closeDriveEditor(){ document.getElementById('drive-editor-overlay').style.display='none'; }
+function saveDriveUrl(){
+  const url = document.getElementById('drive-url-input').value.trim();
+  localStorage.setItem('av5_drive_url', url);
+  loadDriveUrl();
+  closeDriveEditor();
+  showToast('Link de Drive guardado ✓','success');
+}
+
 init();
 loadFeedUrl();
+loadDriveUrl();
 </script>
 </body>
 </html>
