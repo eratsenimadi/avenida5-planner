@@ -255,7 +255,16 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
 
       <div>
         <label class="form-label">Fecha</label>
-        <input type="date" id="form-fecha" class="form-input">
+        <input type="date" id="form-fecha" class="form-input" onchange="checkDateConflict()">
+      </div>
+      <!-- DATE CONFLICT BANNER -->
+      <div id="date-conflict-banner" style="display:none;background:#fef3c7;border:1px solid #f5c842;border-radius:10px;padding:12px 14px;font-size:12px;color:#92400e">
+        <div style="font-weight:700;margin-bottom:6px">⚠️ Ya hay publicaciones en esta fecha</div>
+        <div style="margin-bottom:10px" id="date-conflict-list"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button type="button" onclick="shiftFollowing()" style="padding:5px 12px;border-radius:7px;border:1px solid #92400e;background:#fff;cursor:pointer;font-size:11px;font-weight:700;color:#92400e;font-family:'DM Sans',sans-serif">Recorrer las siguientes +1 día</button>
+          <button type="button" onclick="dismissConflict()" style="padding:5px 12px;border-radius:7px;border:1px solid #ccc;background:#fff;cursor:pointer;font-size:11px;color:#666;font-family:'DM Sans',sans-serif">Agregar igual (misma fecha)</button>
+        </div>
       </div>
       <div>
         <label class="form-label">Formato</label>
@@ -263,6 +272,19 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
           <option value="">Selecciona…</option>
           <option>Reel</option><option>Carrusel</option><option>Story</option>
           <option>Post foto</option><option>Video largo</option><option>Live</option><option>Otro</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Estado de producción</label>
+        <select id="form-estado" class="form-select">
+          <option value="sin_empezar">Sin empezar</option>
+          <option value="planeacion">Planeación</option>
+          <option value="grabacion">Grabación</option>
+          <option value="diseno">Diseño</option>
+          <option value="edicion">Edición</option>
+          <option value="copy">Copy y portada</option>
+          <option value="programado">Programado</option>
+          <option value="publicado">Publicado</option>
         </select>
       </div>
       <div>
@@ -280,32 +302,12 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
         <button type="button" class="btn-add-link" onclick="addLink('links-list')">+ Agregar link de inspiración</button>
       </div>
 
-      <div>
-        <label class="form-label">Estado de producción</label>
-        <select id="form-estado" class="form-select">
-          <option value="sin_empezar">Sin empezar</option>
-          <option value="planeacion">Planeación</option>
-          <option value="grabacion">Grabación</option>
-          <option value="diseno">Diseño</option>
-          <option value="edicion">Edición</option>
-          <option value="copy">Copy y portada</option>
-          <option value="programado">Programado</option>
-          <option value="publicado">Publicado</option>
-        </select>
-      </div>
-
       <hr class="form-divider">
 
-      <div>
-        <label class="form-label">Caption / Copy</label>
-        <textarea id="form-caption" class="form-textarea" rows="3" placeholder="El texto que irá publicado…"></textarea>
-      </div>
       <div>
         <label class="form-label">Descripción interna</label>
         <textarea id="form-desc" class="form-textarea" rows="2" placeholder="Notas de producción, concepto, contexto…"></textarea>
       </div>
-
-      <hr class="form-divider">
 
       <div>
         <label class="form-label">Guión <span class="form-sublabel">(opcional)</span></label>
@@ -319,6 +321,11 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
         <div id="guion-link-panel" style="display:none">
           <input type="url" id="form-guion-link" class="form-input" placeholder="https://docs.google.com/…">
         </div>
+      </div>
+
+      <div>
+        <label class="form-label">Caption / Copy</label>
+        <textarea id="form-caption" class="form-textarea" rows="3" placeholder="El texto que irá publicado…"></textarea>
       </div>
 
       <hr class="form-divider">
@@ -380,7 +387,7 @@ let deleteId = null;
 // ─── CÓDIGO ÚNICO AV5-NNN ─────────────────────────────
 function generateCode(){
   const used = new Set(items.map(i=>i.code).filter(Boolean));
-  let n = items.length + 1;
+  let n = 1;
   let code;
   do { code='AV5-'+String(n).padStart(3,'0'); n++; } while(used.has(code));
   return code;
@@ -449,6 +456,7 @@ function setView(v,btn){
 // ─── KANBAN ───────────────────────────────────────────
 function renderKanban(filtered){
   const g={}; ESTADO_ORDER.forEach(e=>g[e]=[]); filtered.forEach(i=>(g[i.estado]||g.sin_empezar).push(i));
+  ESTADO_ORDER.forEach(key=>g[key].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')));
   let h='<div class="kanban">';
   ESTADO_ORDER.forEach(key=>{
     const e=ESTADOS[key];
@@ -461,7 +469,7 @@ function renderKanban(filtered){
 }
 
 function cardHTML(item){
-  const cap=item.caption||'';
+  const desc=item.desc||'';
   const redes=(item.redes||[]).map(r=>redBadge(r)).join('');
   const portadas=(item.portadas||[]).filter(Boolean);
   const links=(item.links||[]).filter(Boolean);
@@ -474,7 +482,7 @@ function cardHTML(item){
   return `<div class="card"><div class="card-body">
     ${codeH}
     <div class="card-top"><span class="card-date">${item.fecha||'Sin fecha'}</span><span class="card-formato">${FORMAT_ICONS[item.formato]||'✦'} ${item.formato||''}</span></div>
-    <div class="card-caption ${cap?'':'empty'}">${cap||'Sin caption'}</div>
+    <div class="card-caption ${desc?'':'empty'}">${desc||'Sin descripción'}</div>
     <div class="card-redes">${redes}</div>
     ${portadasH}${linksH}${resH}${guionH}
     <div class="card-actions"><button class="btn-edit" onclick="openModal('${item.id}')">Editar</button><button class="btn-del" onclick="askDelete('${item.id}')">✕</button></div>
@@ -543,6 +551,7 @@ function emptyHTML(){ return`<div class="empty-state"><div class="empty-icon">�
 // ─── MODAL ────────────────────────────────────────────
 function openModal(id=null,fecha=''){
   document.querySelectorAll('.red-toggle').forEach(b=>b.classList.remove('active'));
+  document.getElementById('date-conflict-banner').style.display='none';
   const badge=document.getElementById('modal-code-badge');
   if(id){
     const item=items.find(i=>i.id==id); if(!item) return;
@@ -677,6 +686,46 @@ function saveFeedUrl(){
   loadFeedUrl();
   closeFeedEditor();
   showToast('Link del feed guardado ✓','success');
+}
+
+// ─── DATE CONFLICT ────────────────────────────────────
+function checkDateConflict(){
+  const fecha = document.getElementById('form-fecha').value;
+  const currentId = document.getElementById('form-id').value;
+  const banner = document.getElementById('date-conflict-banner');
+  const listEl = document.getElementById('date-conflict-list');
+  if(!fecha){ banner.style.display='none'; return; }
+  const conflicts = items.filter(i=>i.fecha===fecha && i.id!=currentId);
+  if(!conflicts.length){ banner.style.display='none'; return; }
+  listEl.textContent = conflicts.map(i=>`${i.code||'Sin código'} — ${i.desc||i.caption||'Sin descripción'}`).join(' · ');
+  banner.style.display='';
+}
+function dismissConflict(){
+  document.getElementById('date-conflict-banner').style.display='none';
+}
+async function shiftFollowing(){
+  const fecha = document.getElementById('form-fecha').value;
+  if(!fecha) return;
+  // Find all items on this date or later (excluding current editing item)
+  const currentId = document.getElementById('form-id').value;
+  const toShift = items.filter(i=>i.fecha && i.fecha>=fecha && i.id!=currentId)
+    .sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  if(!toShift.length){ dismissConflict(); return; }
+  // Add 1 day to each
+  toShift.forEach(item=>{
+    const p = item.fecha.split('-');
+    const d = new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])+1);
+    item.fecha = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  });
+  saveLocal(); render(); dismissConflict();
+  setSS('saving','Recorriendo fechas…');
+  try{
+    await Promise.all(toShift.map(item=>apiSave(item)));
+    setSS('online','Sincronizado · '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}));
+    showToast(`${toShift.length} publicación${toShift.length>1?'es':''} recorrida${toShift.length>1?'s':''} +1 día ✓`,'success');
+  }catch(e){
+    setSS('error','Error al sincronizar'); showToast('Recorrido guardado localmente','error');
+  }
 }
 
 init();
