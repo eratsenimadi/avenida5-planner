@@ -74,20 +74,37 @@ header{background:linear-gradient(135deg,#1a1a18 0%,#2d2a24 100%);padding:18px 2
 .list-caption{flex:1;font-size:12px;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:80px}
 .list-caption.empty{color:#ccc;font-style:italic}
 /* CALENDAR */
-.cal-nav{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.cal-nav{display:flex;align-items:center;gap:16px;margin-bottom:12px}
 .cal-nav h2{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--dark)}
 .btn-nav{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:16px;color:#666}
+.cal-undo-btn{padding:5px 14px;border-radius:8px;border:1px solid var(--border);background:var(--white);cursor:pointer;font-size:12px;color:#666;font-family:'DM Sans',sans-serif;margin-left:auto}
+.cal-undo-btn:disabled{opacity:.3;cursor:default}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--white);border-radius:10px;border:1px solid var(--border)}
+.cal-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:#666}
+.cal-legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
 .cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
 .cal-day-name{text-align:center;font-size:10px;font-weight:700;color:#aaa;padding:4px 0;text-transform:uppercase}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .cal-cell{min-height:80px;border-radius:10px;padding:6px 8px;background:var(--white);border:1px solid var(--border);cursor:pointer;transition:box-shadow .15s}
 .cal-cell:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}
 .cal-cell.today{border:2px solid var(--gold)}
+.cal-cell.domingo{background:#fafafa}
 .cal-cell.empty-cell{background:transparent;border-color:transparent;cursor:default}
 .cal-cell-day{font-size:12px;font-weight:500;color:#666;margin-bottom:4px}
 .cal-cell.today .cal-cell-day{color:var(--gold);font-weight:800}
-.cal-event{font-size:9px;padding:2px 5px;border-radius:5px;margin-bottom:2px;background:var(--gold-light);color:#7a6040;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.cal-cell.domingo .cal-cell-day{color:#ddd}
+.cal-event{font-size:9px;padding:2px 6px;border-radius:5px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;color:#fff;font-weight:600}
 .cal-more{font-size:9px;color:var(--gold)}
+/* FORMAT COLORS */
+.fmt-reel{background:#6366f1}
+.fmt-carrusel{background:#f59e0b}
+.fmt-story{background:#ec4899}
+.fmt-post{background:#3DBFBF}
+.fmt-video{background:#8b5cf6}
+.fmt-live{background:#ef4444}
+.fmt-otro{background:#6b7280}
+/* LIST FORMAT BADGE */
+.list-fmt-badge{padding:2px 8px;border-radius:5px;font-size:10px;font-weight:700;color:#fff;white-space:nowrap;flex-shrink:0}
 /* EMPTY */
 .empty-state{text-align:center;padding:60px 20px;color:#ccc}
 .empty-icon{font-size:36px;margin-bottom:12px}
@@ -517,10 +534,25 @@ function cardHTML(item){
   </div></div>`;
 }
 
+// ─── FORMAT COLOR ─────────────────────────────────────
+const FMT_COLOR = {
+  'Reel':'#6366f1','Carrusel':'#f59e0b','Story':'#ec4899',
+  'Post foto':'#3DBFBF','Video largo':'#8b5cf6','Live':'#ef4444','Otro':'#6b7280',''  :'#6b7280'
+};
+function fmtClass(fmt){
+  const m={'Reel':'reel','Carrusel':'carrusel','Story':'story','Post foto':'post','Video largo':'video','Live':'live','Otro':'otro'};
+  return 'fmt-'+(m[fmt]||'otro');
+}
+function fmtBadge(fmt){ return `<span class="list-fmt-badge ${fmtClass(fmt)}" style="background:${FMT_COLOR[fmt]||'#6b7280'}">${fmt||'—'}</span>`; }
+function legendHTML(){
+  const items=[['Reel','#6366f1'],['Carrusel','#f59e0b'],['Story','#ec4899'],['Post foto','#3DBFBF'],['Video largo','#8b5cf6'],['Live','#ef4444'],['Otro','#6b7280']];
+  return `<div class="cal-legend">${items.map(([l,c])=>`<div class="cal-legend-item"><div class="cal-legend-dot" style="background:${c}"></div>${l}</div>`).join('')}</div>`;
+}
+
 // ─── LISTA ────────────────────────────────────────────
 function renderLista(filtered){
   if(!filtered.length){ document.getElementById('view-lista').innerHTML=emptyHTML(); return; }
-  let h='';
+  let h=legendHTML();
   filtered.forEach(item=>{
     const redes=(item.redes||[]).map(r=>redBadge(r)).join('');
     const portadas=(item.portadas||[]).filter(Boolean);
@@ -529,18 +561,48 @@ function renderLista(filtered){
     const prt=portadas.map(l=>`<a href="${l}" target="_blank" style="font-size:11px;color:#7c6fcd">🖼</a>`).join('');
     const guionH=item.guionLink?`<a href="${item.guionLink}" target="_blank" style="font-size:11px;color:#7c6fcd">📄</a>`:item.guionTexto?`<span style="font-size:11px;color:#7c6fcd">📄</span>`:'';
     const codeH=item.code?`<span class="list-code">${item.code}</span>`:'';
-    h+=`<div class="list-row">${codeH}<span class="list-date">${item.fecha||'Sin fecha'}</span><span class="list-formato">${item.formato||'—'}</span>${estadoBadge(item.estado)}<div class="list-redes">${redes}</div><div class="list-caption ${item.caption?'':'empty'}">${item.caption||'Sin caption'}</div><div style="display:flex;gap:4px;align-items:center">${prt}${ins}${res}${guionH}</div><button class="btn-edit" onclick="openModal('${item.id}')">Editar</button><button class="btn-del" onclick="askDelete('${item.id}')">✕</button></div>`;
+    const desc=item.desc||'';
+    h+=`<div class="list-row">${codeH}${fmtBadge(item.formato)}<span class="list-date">${item.fecha||'Sin fecha'}</span>${estadoBadge(item.estado)}<div class="list-redes">${redes}</div><div class="list-caption ${desc?'':'empty'}">${desc||'Sin descripción'}</div><div style="display:flex;gap:4px;align-items:center">${prt}${ins}${res}${guionH}</div><button class="btn-edit" onclick="openModal('${item.id}')">Editar</button><button class="btn-del" onclick="askDelete('${item.id}')">✕</button></div>`;
   });
   document.getElementById('view-lista').innerHTML=h;
 }
 
+// ─── UNDO STACK ───────────────────────────────────────
+let undoStack = [];
+function pushUndo(snapshot){ undoStack.push(JSON.parse(JSON.stringify(snapshot))); if(undoStack.length>20) undoStack.shift(); updateUndoBtn(); }
+function updateUndoBtn(){ const b=document.getElementById('cal-undo-btn'); if(b) b.disabled=undoStack.length===0; }
+async function undoAction(){
+  if(!undoStack.length) return;
+  const prev=undoStack.pop();
+  // Find changed items by comparing with current
+  const changed=prev.filter(p=>{ const cur=items.find(i=>i.id===p.id); return cur&&cur.fecha!==p.fecha; });
+  changed.forEach(p=>{ const idx=items.findIndex(i=>i.id===p.id); if(idx>=0) items[idx].fecha=p.fecha; });
+  saveLocal(); render(); updateUndoBtn();
+  setSS('saving','Deshaciendo…');
+  try{
+    await Promise.all(changed.map(p=>{ const item=items.find(i=>i.id===p.id); return item?apiSave(item):Promise.resolve(); }));
+    setSS('online','Deshecho · '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}));
+    showToast('Acción deshecha ✓','success');
+  }catch(e){ setSS('error','Error al sincronizar deshacer'); }
+}
+
 // ─── CALENDARIO ───────────────────────────────────────
 function parseFecha(str){
-  // Parse YYYY-MM-DD as local date (avoids UTC→local timezone shift)
   if(!str) return null;
   const p=str.split('-');
   if(p.length!==3) return null;
   return { y:parseInt(p[0]), m:parseInt(p[1])-1, d:parseInt(p[2]) };
+}
+// Skip sundays when adding days
+function addDaysNoSunday(dateStr, days){
+  const p=dateStr.split('-');
+  let d=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+  let added=0;
+  while(added<days){
+    d.setDate(d.getDate()+1);
+    if(d.getDay()!==0) added++;
+  }
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function renderCalendario(){
@@ -557,19 +619,33 @@ function renderCalendario(){
       dm[p.d].push(i);
     }
   });
-  let h=`<div class="cal-nav"><button class="btn-nav" onclick="calPrev()">←</button><h2>${MESES[currentMonth]} ${currentYear}</h2><button class="btn-nav" onclick="calNext()">→</button></div>
+  let h=`<div class="cal-nav">
+    <button class="btn-nav" onclick="calPrev()">←</button>
+    <h2>${MESES[currentMonth]} ${currentYear}</h2>
+    <button class="btn-nav" onclick="calNext()">→</button>
+    <button class="cal-undo-btn" id="cal-undo-btn" onclick="undoAction()" disabled>↩ Deshacer</button>
+  </div>
+  ${legendHTML()}
   <div class="cal-days-header">${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'].map(d=>`<div class="cal-day-name">${d}</div>`).join('')}</div><div class="cal-grid">`;
   for(let i=0;i<fd;i++) h+='<div class="cal-cell empty-cell"></div>';
   for(let d=1;d<=td;d++){
     const isT=itm&&d===today.getDate();
     const ds=`${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayOfWeek=new Date(currentYear,currentMonth,d).getDay();
+    const isDom=dayOfWeek===0;
     const di=dm[d]||[];
-    h+=`<div class="cal-cell ${isT?'today':''}" onclick="calDayClick('${ds}')"><div class="cal-cell-day">${d}</div>`;
-    di.slice(0,3).forEach(it=>{ h+=`<div class="cal-event" onclick="event.stopPropagation();openModal('${it.id}')">${it.code?it.code+' · ':''}${(it.caption||'…').slice(0,14)}</div>`; });
+    h+=`<div class="cal-cell ${isT?'today':''} ${isDom?'domingo':''}" onclick="${isDom?'':'calDayClick(\''+ds+'\')'}" style="${isDom?'cursor:default':''}">
+      <div class="cal-cell-day">${d}</div>`;
+    di.slice(0,3).forEach(it=>{
+      const color=FMT_COLOR[it.formato]||'#6b7280';
+      const label=(it.code?it.code+' · ':'')+((it.desc||it.caption||'…').slice(0,14));
+      h+=`<div class="cal-event ${fmtClass(it.formato)}" style="background:${color}" onclick="event.stopPropagation();openModal('${it.id}')" title="${it.desc||it.caption||''}">${label}</div>`;
+    });
     if(di.length>3) h+=`<div class="cal-more">+${di.length-3} más</div>`;
     h+='</div>';
   }
   document.getElementById('view-calendario').innerHTML=h+'</div>';
+  updateUndoBtn();
 }
 function calPrev(){ if(currentMonth===0){currentMonth=11;currentYear--;}else currentMonth--; renderCalendario(); }
 function calNext(){ if(currentMonth===11){currentMonth=0;currentYear++;}else currentMonth++; renderCalendario(); }
@@ -747,16 +823,15 @@ function dismissConflict(){
 async function shiftFollowing(){
   const fecha = document.getElementById('form-fecha').value;
   if(!fecha) return;
-  // Find all items on this date or later (excluding current editing item)
   const currentId = document.getElementById('form-id').value;
   const toShift = items.filter(i=>i.fecha && i.fecha>=fecha && i.id!=currentId)
     .sort((a,b)=>a.fecha.localeCompare(b.fecha));
   if(!toShift.length){ dismissConflict(); return; }
-  // Add 1 day to each
+  // Save undo snapshot before shifting
+  pushUndo(items.map(i=>({id:i.id,fecha:i.fecha})));
+  // Add 1 day skipping sundays
   toShift.forEach(item=>{
-    const p = item.fecha.split('-');
-    const d = new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2])+1);
-    item.fecha = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    item.fecha = addDaysNoSunday(item.fecha, 1);
   });
   saveLocal(); render(); dismissConflict();
   setSS('saving','Recorriendo fechas…');
